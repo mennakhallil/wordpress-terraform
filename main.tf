@@ -14,35 +14,59 @@ provider "aws" {
 #####################################################
 # EC2 Instance - AZ1
 resource "aws_instance" "web_application" {
-  ami                         = "ami-0c02fb55956c7d316"
+  ami                         = "ami-091138d0f0d41ff90"
   instance_type               = "t3.micro"
   subnet_id                   = aws_subnet.private_subnet_1.id
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
   key_name                    = "my-key-pair"
   user_data_replace_on_change = true
 
-  user_data = <<-EOF
+ user_data = <<-EOF
 #!/bin/bash
-sudo yum update -y
-sudo yum install -y httpd php php-mysqlnd git unzip
-sudo systemctl start httpd
-sudo systemctl enable httpd
-sudo rm -rf /var/www/html/*
-sudo cd /tmp
-sudo curl -O https://wordpress.org/latest.tar.gz
-sudo tar -xzf latest.tar.gz
-sudo cp -r wordpress/* /var/www/html/
-sudo chown -R apache:apache /var/www/html/
-sudo chmod -R 755 /var/www/html/
-sudo chmod 644 /var/www/html/wp-config.php
-sudo cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
-sudo sed -i 's/database_name_here/wordpress/' /var/www/html/wp-config.php
-sudo sed -i 's/username_here/admin/' /var/www/html/wp-config.php
-sudo sed -i 's/password_here/Admin12345!/' /var/www/html/wp-config.php
-sudo sed -i "s/localhost/${aws_db_instance.mysql_primary.address}/" /var/www/html/wp-config.php
-sudo systemctl restart httpd
-EOF
 
+apt update -y
+
+DEBIAN_FRONTEND=noninteractive apt install -y \
+apache2 \
+php \
+php-mysql \
+libapache2-mod-php \
+mysql-client \
+curl \
+unzip
+
+systemctl start apache2
+systemctl enable apache2
+
+rm -rf /var/www/html/*
+
+cd /tmp
+
+curl -O https://wordpress.org/latest.tar.gz
+
+tar -xzf latest.tar.gz
+
+cp -r wordpress/* /var/www/html/
+
+cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+
+sed -i 's/database_name_here/wordpress/' /var/www/html/wp-config.php
+sed -i 's/username_here/admin/' /var/www/html/wp-config.php
+sed -i 's/password_here/Admin12345!/' /var/www/html/wp-config.php
+sed -i "s/localhost/${aws_db_instance.mysql_primary.address}/" /var/www/html/wp-config.php
+
+chown -R www-data:www-data /var/www/html/
+
+find /var/www/html/ -type d -exec chmod 755 {} \;
+find /var/www/html/ -type f -exec chmod 644 {} \;
+
+echo "ok" > /var/www/html/health.html
+echo "ok" | tee /var/www/html/health.html
+chown www-data:www-data /var/www/html/health.html
+chmod 644 /var/www/html/health.html
+systemctl restart apache2
+
+EOF
   tags = {
     Name = "Web-Application"
   }
@@ -50,33 +74,57 @@ EOF
 
 # EC2 Instance - AZ2
 resource "aws_instance" "web_application2" {
-  ami                         = "ami-0c02fb55956c7d316"
+  ami                         = "ami-091138d0f0d41ff90"
   instance_type               = "t3.micro"
   subnet_id                   = aws_subnet.private_subnet_2.id
   vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
   key_name                    = "my-key-pair"
   user_data_replace_on_change = true
-
   user_data = <<-EOF
 #!/bin/bash
-sudo yum update -y
-sudo yum install -y httpd php php-mysqlnd git unzip
-sudo systemctl start httpd
-sudo systemctl enable httpd
-sudo rm -rf /var/www/html/*
-sudo cd /tmp
-sudo curl -O https://wordpress.org/latest.tar.gz
-sudo tar -xzf latest.tar.gz
-sudo cp -r wordpress/* /var/www/html/
-sudo chown -R apache:apache /var/www/html/
-sudo chmod -R 755 /var/www/html/
-sudo chmod 644 /var/www/html/wp-config.php
-sudo cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
-sudo sed -i 's/database_name_here/wordpress/' /var/www/html/wp-config.php
-sudo sed -i 's/username_here/admin/' /var/www/html/wp-config.php
-sudo sed -i 's/password_here/Admin12345!/' /var/www/html/wp-config.php
-sudo sed -i "s/localhost/${aws_db_instance.mysql_primary.address}/" /var/www/html/wp-config.php
-sudo systemctl restart httpd
+
+apt update -y
+
+DEBIAN_FRONTEND=noninteractive apt install -y \
+apache2 \
+php \
+php-mysql \
+libapache2-mod-php \
+mysql-client \
+curl \
+unzip
+
+systemctl start apache2
+systemctl enable apache2
+
+rm -rf /var/www/html/*
+
+cd /tmp
+
+curl -O https://wordpress.org/latest.tar.gz
+
+tar -xzf latest.tar.gz
+
+cp -r wordpress/* /var/www/html/
+
+cp /var/www/html/wp-config-sample.php /var/www/html/wp-config.php
+
+sed -i 's/database_name_here/wordpress/' /var/www/html/wp-config.php
+sed -i 's/username_here/admin/' /var/www/html/wp-config.php
+sed -i 's/password_here/Admin12345!/' /var/www/html/wp-config.php
+sed -i "s/localhost/${aws_db_instance.mysql_primary.address}/" /var/www/html/wp-config.php
+
+chown -R www-data:www-data /var/www/html/
+
+find /var/www/html/ -type d -exec chmod 755 {} \;
+find /var/www/html/ -type f -exec chmod 644 {} \;
+
+echo "ok" > /var/www/html/health.html
+echo "ok" | tee /var/www/html/health.html
+chown www-data:www-data /var/www/html/health.html
+chmod 644 /var/www/html/health.html
+systemctl restart apache2
+
 EOF
 
   tags = {
@@ -341,25 +389,25 @@ resource "aws_route_table_association" "private_rta_2" {
 #####################################################
 # Target Group
 resource "aws_lb_target_group" "my_tg" {
+    
   name     = "my-target-group"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.my_vpc.id
-
-  health_check {
-    path                = "/wp-admin/install.php"
-    port                = "traffic-port"
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
-    interval            = 30
-    matcher             = "200,302"
-  }
+health_check {
+  path                = "/health.html"
+  port                = "traffic-port"
+  protocol            = "HTTP"
+  matcher             = "200"
+  healthy_threshold   = 2
+  unhealthy_threshold = 2
+  interval            = 30
+}
 
   tags = {
     Name = "my-target-group"
   }
 }
-
 resource "aws_lb_target_group_attachment" "tg_attachment_1" {
   target_group_arn = aws_lb_target_group.my_tg.arn
   target_id        = aws_instance.web_application.id
